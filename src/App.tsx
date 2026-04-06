@@ -136,7 +136,7 @@ const FadeIn = ({ children, delay = 0 }: { children: ReactNode, delay?: number }
 
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [pendingMobileNavHref, setPendingMobileNavHref] = useState<string | null>(null);
+  const [pendingNavHref, setPendingNavHref] = useState<string | null>(null);
   const [contactForm, setContactForm] = useState<ContactForm>(emptyContactForm);
   const [contactErrors, setContactErrors] = useState<Partial<Record<ContactField, string>>>({});
   const [contactStatus, setContactStatus] = useState<{ type: 'idle' | 'success' | 'error'; message: string }>({
@@ -171,35 +171,47 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (isMenuOpen || !pendingMobileNavHref) {
+    if (isMenuOpen || !pendingNavHref) {
       return;
     }
 
-    const target = document.querySelector(pendingMobileNavHref);
-    if (target instanceof HTMLElement) {
-      target.scrollIntoView({
-        behavior: shouldReduceMotion ? 'auto' : 'smooth',
-        block: 'start',
-      });
+    const nextFrame = window.requestAnimationFrame(() => {
+      if (pendingNavHref === '#top') {
+        window.scrollTo({
+          top: 0,
+          behavior: shouldReduceMotion ? 'auto' : 'smooth',
+        });
+      } else {
+        const target = document.querySelector(pendingNavHref);
 
-      if (window.location.hash !== pendingMobileNavHref) {
-        window.history.pushState(null, '', pendingMobileNavHref);
+        if (target instanceof HTMLElement) {
+          target.scrollIntoView({
+            behavior: shouldReduceMotion ? 'auto' : 'smooth',
+            block: 'start',
+          });
+        }
       }
-    } else {
-      window.location.hash = pendingMobileNavHref;
-    }
 
-    setPendingMobileNavHref(null);
-  }, [isMenuOpen, pendingMobileNavHref, shouldReduceMotion]);
+      if (window.location.hash !== pendingNavHref) {
+        window.history.pushState(null, '', pendingNavHref);
+      }
 
-  const handleMobileNavLinkClick = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
+      setPendingNavHref(null);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(nextFrame);
+    };
+  }, [isMenuOpen, pendingNavHref, shouldReduceMotion]);
+
+  const handleSectionLinkClick = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
     if (!href.startsWith('#')) {
       setIsMenuOpen(false);
       return;
     }
 
     event.preventDefault();
-    setPendingMobileNavHref(href);
+    setPendingNavHref(href);
     setIsMenuOpen(false);
   };
 
@@ -338,7 +350,12 @@ export default function App() {
         <nav className="fixed inset-x-0 top-0 z-50 border-b border-stone-200 bg-[#FDFBF7]/90 backdrop-blur-md">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex h-[4.5rem] items-center justify-between sm:h-20">
-              <a href="#top" className="flex items-center shrink-0" aria-label="Solar PV Canopy">
+              <a
+                href="#top"
+                onClick={(event) => handleSectionLinkClick(event, '#top')}
+                className="flex items-center shrink-0"
+                aria-label="Solar PV Canopy"
+              >
                 <img
                   src="/logo.jpeg"
                   alt="Solar PV Canopy logo"
@@ -351,11 +368,20 @@ export default function App() {
               {/* Desktop Menu */}
               <div className="hidden items-center space-x-8 md:flex">
                 {navLinks.map((link) => (
-                  <a key={link.href} href={link.href} className="text-sm font-medium text-stone-600 transition-colors hover:text-emerald-700">
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    onClick={(event) => handleSectionLinkClick(event, link.href)}
+                    className="text-sm font-medium text-stone-600 transition-colors hover:text-emerald-700"
+                  >
                     {link.label}
                   </a>
                 ))}
-                <a href="#contact" className="rounded-full bg-emerald-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-emerald-800 hover:shadow-md">
+                <a
+                  href="#contact"
+                  onClick={(event) => handleSectionLinkClick(event, '#contact')}
+                  className="rounded-full bg-emerald-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-emerald-800 hover:shadow-md"
+                >
                   Contact Us
                 </a>
               </div>
@@ -392,7 +418,7 @@ export default function App() {
                     <a
                       key={link.href}
                       href={link.href}
-                      onClick={(event) => handleMobileNavLinkClick(event, link.href)}
+                      onClick={(event) => handleSectionLinkClick(event, link.href)}
                       className="block rounded-lg px-3 py-3 text-base font-medium text-stone-700 hover:bg-stone-50"
                     >
                       {link.label}
@@ -441,10 +467,18 @@ export default function App() {
                 Transitioning from an "Energy-Only" utility to a "Multi-Output" land-use model that harmonizes energy, food, and community.
               </p>
               <div className="flex flex-col justify-center gap-4 sm:flex-row">
-                <a href="#solution" className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-700 px-6 py-4 text-base font-medium text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-emerald-800 hover:shadow-xl sm:w-auto sm:px-8 sm:text-lg">
+                <a
+                  href="#solution"
+                  onClick={(event) => handleSectionLinkClick(event, '#solution')}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-700 px-6 py-4 text-base font-medium text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-emerald-800 hover:shadow-xl sm:w-auto sm:px-8 sm:text-lg"
+                >
                   Explore the Solution <ArrowRight className="h-5 w-5" />
                 </a>
-                <a href="#problem" className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-stone-200 bg-white px-6 py-4 text-base font-medium text-stone-700 shadow-sm transition-all hover:bg-stone-50 sm:w-auto sm:px-8 sm:text-lg">
+                <a
+                  href="#problem"
+                  onClick={(event) => handleSectionLinkClick(event, '#problem')}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-stone-200 bg-white px-6 py-4 text-base font-medium text-stone-700 shadow-sm transition-all hover:bg-stone-50 sm:w-auto sm:px-8 sm:text-lg"
+                >
                   Understand the Problem
                 </a>
               </div>
@@ -913,6 +947,7 @@ export default function App() {
                   <a
                     key={link.href}
                     href={link.href}
+                    onClick={(event) => handleSectionLinkClick(event, link.href)}
                     className="block text-stone-800 transition-all hover:font-semibold hover:text-green-900 hover:underline underline-offset-4 decoration-green-900/70"
                   >
                     {link.label}
@@ -944,7 +979,11 @@ export default function App() {
             <p className="text-sm text-stone-700">
               &copy; {new Date().getFullYear()} Solar PV Canopy. All rights reserved.
             </p>
-            <a href="#top" className="text-sm font-medium text-emerald-800 hover:text-green-900 transition-colors">
+            <a
+              href="#top"
+              onClick={(event) => handleSectionLinkClick(event, '#top')}
+              className="text-sm font-medium text-emerald-800 hover:text-green-900 transition-colors"
+            >
               Back to top
             </a>
           </div>
