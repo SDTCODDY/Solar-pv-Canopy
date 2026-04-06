@@ -21,11 +21,18 @@ const heroImageSources = {
   lg: 'https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?q=80&w=1600&auto=format&fit=crop',
 };
 
+const defaultEmailJsConfig = {
+  publicKey: 'v-_2nkCzC9E3Z2iS_',
+  serviceId: 'service_ph7rqwk',
+  contactTemplateId: 'template_ag67o0d',
+  autoReplyTemplateId: 'template_qjgp7k8',
+};
+
 const emailJsConfig = {
-  publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY?.trim() ?? '',
-  serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID?.trim() ?? '',
-  contactTemplateId: import.meta.env.VITE_EMAILJS_CONTACT_TEMPLATE_ID?.trim() ?? '',
-  autoReplyTemplateId: import.meta.env.VITE_EMAILJS_AUTO_REPLY_TEMPLATE_ID?.trim() ?? '',
+  publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY?.trim() || defaultEmailJsConfig.publicKey,
+  serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID?.trim() || defaultEmailJsConfig.serviceId,
+  contactTemplateId: import.meta.env.VITE_EMAILJS_CONTACT_TEMPLATE_ID?.trim() || defaultEmailJsConfig.contactTemplateId,
+  autoReplyTemplateId: import.meta.env.VITE_EMAILJS_AUTO_REPLY_TEMPLATE_ID?.trim() || defaultEmailJsConfig.autoReplyTemplateId,
 };
 
 const emptyContactForm = {
@@ -72,6 +79,22 @@ const getFriendlyContactError = (response: Response, fallbackText?: string | nul
   }
 
   return fallbackText || 'We could not send your message right now.';
+};
+
+const getFriendlyEmailJsError = (error: unknown) => {
+  if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
+    return 'EmailJS needs the site to be opened through a web server. Start it with npm run dev or npm run preview instead of opening the HTML file directly.';
+  }
+
+  if (error instanceof TypeError) {
+    return 'EmailJS could not be reached right now. Check your internet connection and EmailJS settings, then try again.';
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return 'EmailJS could not send your message right now.';
 };
 
 const buildEmailJsTemplateParams = (form: ContactForm) => {
@@ -257,6 +280,8 @@ export default function App() {
     setIsSubmittingContact(true);
     setContactStatus({ type: 'idle', message: '' });
 
+    let deliveryMethod: 'emailjs' | 'backend' = 'backend';
+
     try {
       const trimmedForm = {
         name: contactForm.name.trim(),
@@ -272,6 +297,7 @@ export default function App() {
       );
 
       if (emailJsReady) {
+        deliveryMethod = 'emailjs';
         const templateParams = buildEmailJsTemplateParams(trimmedForm);
         await sendEmailJsTemplate(emailJsConfig.contactTemplateId, templateParams);
 
@@ -332,7 +358,9 @@ export default function App() {
       setContactStatus({
         type: 'error',
         message:
-          error instanceof TypeError
+          deliveryMethod === 'emailjs'
+            ? getFriendlyEmailJsError(error)
+            : error instanceof TypeError
             ? 'The contact form backend is not reachable. Start the website with npm run dev or npm run preview.'
             : error instanceof Error
               ? error.message
