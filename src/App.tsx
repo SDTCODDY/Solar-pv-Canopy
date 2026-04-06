@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type ChangeEvent, type FormEvent, type MouseEvent, type ReactNode } from 'react';
 import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from 'motion/react';
 import {
   Sun, Leaf, Zap, Bird, Tractor, Sprout, Bug,
@@ -136,6 +136,7 @@ const FadeIn = ({ children, delay = 0 }: { children: ReactNode, delay?: number }
 
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [pendingMobileNavHref, setPendingMobileNavHref] = useState<string | null>(null);
   const [contactForm, setContactForm] = useState<ContactForm>(emptyContactForm);
   const [contactErrors, setContactErrors] = useState<Partial<Record<ContactField, string>>>({});
   const [contactStatus, setContactStatus] = useState<{ type: 'idle' | 'success' | 'error'; message: string }>({
@@ -168,6 +169,39 @@ export default function App() {
       mediaQuery.removeEventListener('change', handleBreakpointChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (isMenuOpen || !pendingMobileNavHref) {
+      return;
+    }
+
+    const target = document.querySelector(pendingMobileNavHref);
+    if (target instanceof HTMLElement) {
+      target.scrollIntoView({
+        behavior: shouldReduceMotion ? 'auto' : 'smooth',
+        block: 'start',
+      });
+
+      if (window.location.hash !== pendingMobileNavHref) {
+        window.history.pushState(null, '', pendingMobileNavHref);
+      }
+    } else {
+      window.location.hash = pendingMobileNavHref;
+    }
+
+    setPendingMobileNavHref(null);
+  }, [isMenuOpen, pendingMobileNavHref, shouldReduceMotion]);
+
+  const handleMobileNavLinkClick = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (!href.startsWith('#')) {
+      setIsMenuOpen(false);
+      return;
+    }
+
+    event.preventDefault();
+    setPendingMobileNavHref(href);
+    setIsMenuOpen(false);
+  };
 
   const handleContactChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = event.target;
@@ -358,7 +392,7 @@ export default function App() {
                     <a
                       key={link.href}
                       href={link.href}
-                      onClick={() => setIsMenuOpen(false)}
+                      onClick={(event) => handleMobileNavLinkClick(event, link.href)}
                       className="block rounded-lg px-3 py-3 text-base font-medium text-stone-700 hover:bg-stone-50"
                     >
                       {link.label}
